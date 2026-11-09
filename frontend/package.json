@@ -1,0 +1,59 @@
+{
+  "name": "ramify",
+  "productName": "RAMify",
+  "version": "1.0.0",
+  "description": "VTuber face tracking app",
+  "author": "Kathe",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "app": "concurrently -k -n Vite,Electron \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dist": "node scripts/package.cjs"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.14",
+    "@napolab/texture-bridge-core": "^0.12.0",
+    "@pixiv/three-vrm": "^2.1.2",
+    "three": "^0.165.0"
+  },
+  "devDependencies": {
+    "@electron/asar": "^4.2.0",
+    "@types/three": "^0.184.1",
+    "concurrently": "^9.2.1",
+    "electron": "^42.1.0",
+    "electron-builder": "^26.8.1",
+    "rcedit": "^5.0.2",
+    "resedit": "^3.0.2",
+    "vite": "^5.3.1",
+    "wait-on": "^9.0.10"
+  },
+  "build": {
+    "appId": "com.ramify.app",
+    "productName": "RAMify",
+    "directories": {
+      "output": "dist-app"
+    },
+    "asarUnpack": [
+      "assets/**",
+      "dist/mediapipe-wasm/**",
+      "dist/face_landmarker.task",
+      "dist/hand_landmarker.task",
+      "dist/pose_landmarker.task",
+      "node_modules/@napolab/texture-bridge/**",
+      "node_modules/@napolab/texture-bridge-win32-x64-msvc/**"
+    ],
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "assets/**/*",
+      "node_modules/@napolab/**/*"
+    ],
+    "win": {
+      "target": "zip",
+      "icon": "assets/logo.png"
+    }
+  }
+}

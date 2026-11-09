@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Build output
+frontend/dist/
+frontend/dist-app/
+
+# Logs
+*.log
+
+# Personal avatar files (kept local only)
+Lerakz.vrm
+frontend/LerakzHeadshot.png
+
+# OS / editor
+.DS_Store
+Thumbs.db

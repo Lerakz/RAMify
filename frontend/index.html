@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAMify</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0c0f0b;
+      --panel: #141710;
+      --border: rgba(156,175,136,0.10);
+      --accent: #9caf88;
+      --accent2: #c8b87a;
+      --accent3: #c88860;
+      --text: #e6e8e2;
+      --muted: #8a9282;
+      --green: #7ab56a;
+      --red: #c47a6a;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      height: 48px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+      background: var(--panel);
+    }
+    #topbar-logo {
+      height: 34px;
+      width: 34px;
+      object-fit: contain;
+      margin-right: 8px;
+      filter: drop-shadow(0 0 4px rgba(156,175,136,0.35));
+    }
+    #topbar h1 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .spacer { flex: 1; }
+
+    #status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      transition: background 0.3s;
+    }
+    #status-dot.connected { background: var(--green); }
+    #status-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── Main layout ── */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Viewport ── */
+    #viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #080b07;
+    }
+    #canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Overlay messages */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      pointer-events: none;
+    }
+    #overlay-text {
+      font-size: 14px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* Drop zone */
+    #viewport.drag-over::after {
+      content: 'Drop VRM file here';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--accent);
+      background: rgba(156, 175, 136, 0.10);
+      border: 2px dashed var(--accent);
+      pointer-events: none;
+    }
+
+    /* ── Right panel ── */
+    #panel {
+      width: 260px;
+      border-left: 1px solid var(--border);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex-shrink: 0;
+    }
+
+    .panel-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-section h3 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* VRM load button */
+    #load-btn {
+      width: 100%;
+      padding: 10px;
+      background: rgba(156, 175, 136, 0.12);
+      border: 1px solid rgba(156, 175, 136, 0.28);
+      border-radius: 8px;
+      color: var(--accent2);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    #load-btn:hover {
+      background: rgba(156, 175, 136, 0.22);
+      border-color: var(--accent);
+    }
+    #file-input { display: none; }
+
+    /* Sliders */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .slider-row label {
+      font-size: 11px;
+      color: var(--muted);
+      width: 72px;
+      flex-shrink: 0;
+    }
+    .slider-row input[type=range] {
+      flex: 1;
+      accent-color: var(--accent);
+      height: 4px;
+    }
+    .slider-row span {
+      font-size: 11px;
+      color: var(--text);
+      width: 32px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* Blendshape meters */
+    #meters {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 16px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .meter-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .meter-label {
+      font-size: 10px;
+      color: var(--muted);
+      width: 90px;
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .meter-bar-bg {
+      flex: 1;
+      height: 4px;
+      background: rgba(156,175,136,0.08);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .meter-bar {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.05s;
+    }
+    .meter-bar.highlight { background: var(--accent2); }
+    .meter-val {
+      font-size: 10px;
+      color: var(--muted);
+      width: 28px;
+      text-align: right;
+    }
+
+    /* Toggle */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .toggle-row label { font-size: 12px; color: var(--text); }
+    .toggle {
+      width: 36px; height: 20px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle.on { background: var(--accent); }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 14px; height: 14px;
+      background: white;
+      border-radius: 50%;
+      top: 3px; left: 3px;
+      transition: transform 0.2s;
+    }
+    .toggle.on::after { transform: translateX(16px); }
+
+    /* Background picker */
+    .bg-swatches {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .swatch {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.15s;
+    }
+    .swatch.active { border-color: white; }
+    .swatch-custom {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: var(--muted);
+      background: rgba(156,175,136,0.08);
+    }
+
+    /* Cam preview — visibility controlled via #cam-preview-wrap display */
+
+    /* Pose grid */
+    .pose-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+    .pose-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 8px 4px;
+      background: rgba(156,175,136,0.06);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--text);
+      font-size: 10px;
+      text-align: center;
+      line-height: 1.3;
+    }
+    .pose-btn:hover {
+      background: rgba(156,175,136,0.14);
+      border-color: rgba(156,175,136,0.38);
+    }
+    .pose-btn.active {
+      background: rgba(156,175,136,0.20);
+      border-color: var(--accent);
+    }
+    .pose-btn .pose-icon { font-size: 20px; line-height: 1; }
+    .pose-speed-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .pose-speed-row label { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+    .pose-speed-row input { flex: 1; accent-color: var(--accent); }
+    .pose-speed-row span  { font-size: 11px; color: var(--text); width: 36px; text-align: right; }
+
+    /* Bottom bar */
+    #bottombar {
+      height: 32px;
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    #bottombar span { font-size: 11px; color: var(--muted); }
+    #fps-counter { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+
+<div id="topbar">
+  <img id="topbar-logo" src="/logo.png" alt="RAMify" />
+  <h1>RAMify</h1>
+  <div class="spacer"></div>
+  <div id="status-dot"></div>
+  <span id="status-label">Disconnected</span>
+</div>
+
+<div id="update-banner" style="display:none;align-items:center;gap:10px;padding:7px 16px;background:rgba(200,184,122,0.12);border-bottom:1px solid rgba(200,184,122,0.28);font-size:12px;color:var(--accent2);flex-shrink:0">
+  <span style="flex:1" id="update-text"></span>
+  <button id="update-download" style="padding:4px 12px;background:rgba(200,184,122,0.20);border:1px solid rgba(200,184,122,0.45);border-radius:5px;color:var(--accent2);font-size:11px;cursor:pointer">Download</button>
+  <button id="update-dismiss" style="background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;line-height:1;padding:0 2px">✕</button>
+</div>
+
+<div id="main">
+  <div id="viewport" id="drop-zone">
+    <canvas id="canvas"></canvas>
+    <div id="overlay">
+      <div id="overlay-text">
+        Load a VRM model to get started<br>
+        <span style="font-size:12px;color:#444">Drag & drop a .vrm file or use the panel →</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Model</h3>
+      <button id="load-btn">
+        ＋ Load VRM File
+      </button>
+      <input type="file" id="file-input" accept=".vrm" />
+      <div id="model-name" style="margin-top:8px;font-size:11px;color:var(--muted);text-align:center;"></div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Output</h3>
+      <div class="toggle-row">
+        <label>Spout2 (OBS)</label>
+        <div class="toggle" id="toggle-spout" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div id="spout-info" style="font-size:10px;color:var(--muted);margin-top:2px;line-height:1.7;display:none">
+        <span id="spout-status" style="color:var(--text)">Starting…</span><br>
+        In OBS: Add Source → Spout2 Capture → select <strong style="color:var(--text)">RAMify</strong><br>
+        Sending: <strong id="spout-fps" style="color:var(--text)">--</strong> fps
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Tracking</h3>
+      <div class="toggle-row">
+        <label>Smirk detection</label>
+        <div class="toggle on" id="toggle-smirk" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="toggle-row">
+        <label>Brow tracking</label>
+        <div class="toggle on" id="toggle-brow" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="toggle-row">
+        <label>Head rotation</label>
+        <div class="toggle on" id="toggle-head" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="toggle-row">
+        <label>Eye blink</label>
+        <div class="toggle on" id="toggle-blink" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <button id="btn-head-calibrate" style="
+        margin-top:6px; width:100%; padding:7px 10px;
+        background:rgba(156,175,136,0.10); border:1px solid rgba(156,175,136,0.25);
+        border-radius:6px; color:var(--muted); font-size:11px; cursor:pointer;
+        transition:all 0.15s;
+      " onmouseover="this.style.background='rgba(156,175,136,0.20)'"
+         onmouseout="this.style.background='rgba(156,175,136,0.10)'">
+        Set neutral
+      </button>
+      <div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5">
+        Sit naturally, face camera, then press Set neutral to zero your head pitch.
+      </div>
+      <div class="toggle-row" style="margin-top:12px">
+        <label>Hand tracking</label>
+        <div class="toggle" id="toggle-hand"></div>
+      </div>
+      <div id="hand-status" style="font-size:10px;color:var(--muted);margin-top:2px;line-height:1.5;min-height:14px"></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;line-height:1.5">
+        Hold your hands up to the camera to control finger poses.
+      </div>
+      <div class="toggle-row" style="margin-top:12px">
+        <label>Arm tracking</label>
+        <div class="toggle" id="toggle-arm"></div>
+      </div>
+      <div id="arm-status" style="font-size:10px;color:var(--muted);margin-top:2px;line-height:1.5;min-height:14px"></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;line-height:1.5">
+        Tracks your upper arms and elbows in real time.
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Smoothing</h3>
+      <div class="slider-row">
+        <label>Expression</label>
+        <input type="range" id="sl-smooth" min="5" max="50" value="20" />
+        <span id="sl-smooth-val">20%</span>
+      </div>
+      <div class="slider-row">
+        <label>Head</label>
+        <input type="range" id="sl-head" min="3" max="30" value="12" />
+        <span id="sl-head-val">12%</span>
+      </div>
+      <div class="slider-row">
+        <label>Sensitivity</label>
+        <input type="range" id="sl-sens" min="50" max="200" value="100" />
+        <span id="sl-sens-val">1.0×</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Poses</h3>
+      <div class="pose-grid" id="pose-grid">
+        <button class="pose-btn" data-pose="idle">
+          <span class="pose-icon">🧍</span>Idle
+        </button>
+        <button class="pose-btn" data-pose="thinking">
+          <span class="pose-icon">🤔</span>Thinking
+        </button>
+        <button class="pose-btn" data-pose="crossed">
+          <span class="pose-icon">🤨</span>Arms crossed
+        </button>
+        <button class="pose-btn" data-pose="tpose">
+          <span class="pose-icon">🙆</span>T-Pose
+        </button>
+      </div>
+      <div class="pose-speed-row">
+        <label>Transition</label>
+        <input type="range" id="sl-pose-speed" min="1" max="20" value="6" />
+        <span id="sl-pose-speed-val">Medium</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Background</h3>
+      <div class="bg-swatches">
+        <div class="swatch active" style="background:#050508" data-color="#050508"></div>
+        <div class="swatch" style="background:#00b140" data-color="#00b140"></div>
+        <div class="swatch" style="background:#0047ab" data-color="#0047ab"></div>
+        <div class="swatch" style="background:#1a1a2e" data-color="#1a1a2e"></div>
+        <div class="swatch" style="background:#ffffff" data-color="#ffffff"></div>
+        <div class="swatch swatch-custom" title="Custom color">
+          <input type="color" id="color-pick" style="opacity:0;position:absolute;width:28px;height:28px;cursor:pointer" />
+          +
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section" style="padding-bottom:6px">
+      <h3>Webcam preview</h3>
+      <div class="toggle-row">
+        <label>Show preview</label>
+        <div class="toggle" id="toggle-cam"></div>
+      </div>
+      <div class="toggle-row" id="tracking-overlay-row" style="display:none">
+        <label>Show tracking</label>
+        <div class="toggle" id="toggle-overlay"></div>
+      </div>
+      <div style="position:relative;width:100%;display:none" id="cam-preview-wrap">
+        <video id="cam-preview" autoplay muted playsinline style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;opacity:0.75;display:block"></video>
+        <canvas id="cam-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:6px;pointer-events:none"></canvas>
+      </div>
+    </div>
+
+    <div style="padding:10px 16px 6px;font-size:11px;color:var(--muted);flex-shrink:0">
+      LIVE VALUES
+    </div>
+    <div id="meters"></div>
+  </div>
+</div>
+
+<div id="bottombar">
+  <span id="fps-counter">-- fps</span>
+  <span id="face-status">No face</span>
+  <div class="spacer"></div>
+  <span id="app-version" style="color:var(--muted)"></span>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
