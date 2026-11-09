@@ -1,3 +1,5 @@
+# RAMify
+
 # ✦ VTuber Studio — Setup Guide
 
 A VTuber app with full facial expression tracking including smirk detection,
